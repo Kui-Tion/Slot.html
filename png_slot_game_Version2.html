@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PNG Slot Game 🎰</title>
+  <style>
+    :root{
+      --bg:#fef6e4;
+      --panel:#fff5e6;
+      --accent:#ffb84d;
+      --green:#2e8b57;
+      --red:#d9534f;
+    }
+    body {
+      text-align:center;
+      font-family: Inter, Arial, sans-serif;
+      background: var(--bg);
+      padding: 40px 20px;
+      color:#333;
+    }
+    .container {
+      display:inline-block;
+      background:var(--panel);
+      padding:24px;
+      border-radius:12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      min-width:320px;
+    }
+    h1 { margin:0 0 8px 0; font-size:24px; }
+    p.symbols { margin:6px 0 18px 0; color:#666; }
+
+    #slot {
+      font-size:64px;
+      margin: 12px auto;
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      user-select:none;
+    }
+    .reel {
+      width:84px;
+      height:96px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:linear-gradient(180deg,#fff,#fff7ed);
+      border-radius:10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06) inset;
+      transition: transform .15s ease;
+      font-size:44px;
+    }
+    .reel.spin {
+      transform: translateY(-6px);
+      filter: brightness(1.06);
+    }
+
+    #controls {
+      margin-top:14px;
+      display:flex;
+      gap:8px;
+      justify-content:center;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    button {
+      font-size:16px;
+      padding:10px 16px;
+      margin:4px;
+      cursor:pointer;
+      border-radius:8px;
+      border: none;
+      background:var(--accent);
+      color:#4a2b00;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    }
+    button.secondary {
+      background:#eee;
+      color:#333;
+      box-shadow:none;
+    }
+    button:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+    #coins {
+      font-size:18px;
+      margin-top:8px;
+    }
+    #result {
+      font-size:20px;
+      margin-top:14px;
+      min-height:28px;
+      font-weight:600;
+    }
+    .win { color: var(--green); }
+    .lose { color: var(--red); }
+
+    #bet {
+      padding:8px;
+      border-radius:8px;
+      border:1px solid #ddd;
+      font-size:14px;
+      background:white;
+    }
+
+    #history {
+      margin-top:14px;
+      font-size:13px;
+      color:#555;
+      max-width:340px;
+      margin-left:auto;
+      margin-right:auto;
+      text-align:left;
+    }
+    #history ul { padding-left:18px; margin:6px 0 0 0; }
+    footer { margin-top:10px; font-size:12px; color:#888; }
+    @media (max-width:420px){
+      .reel { width:68px; height:80px; font-size:36px; }
+      #slot { gap:8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container" role="application" aria-label="PNG Slot Game">
+    <h1>PNG Slot Game 🎰</h1>
+    <p class="symbols">Symbols: 🍌 🍊 🍎 🥜 (🥜 = BETELNUT JACKPOT)</p>
+
+    <div id="slot" aria-live="polite">
+      <div class="reel" id="r1">🍌</div>
+      <div class="reel" id="r2">🍊</div>
+      <div class="reel" id="r3">🍎</div>
+    </div>
+
+    <div id="result" aria-atomic="true"></div>
+    <div id="coins">Coins: 100</div>
+
+    <div id="controls">
+      <label for="bet">Bet:</label>
+      <select id="bet" aria-label="Bet amount">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+      </select>
+
+      <button id="spinBtn">Spin</button>
+      <button id="addBtn" class="secondary">Add 100 Coins (Demo)</button>
+      <button id="resetBtn" class="secondary">Reset Coins</button>
+    </div>
+
+    <div id="history" aria-live="polite">
+      <strong>Last spins:</strong>
+      <ul id="histList"></ul>
+    </div>
+
+    <footer>Tip: Press Space to spin. Buttons are disabled while reels spin.</footer>
+  </div>
+
+  <script>
+    // Symbols and state
+    const symbols = ["🍌","🍊","🍎","🥜"];
+    const r1 = document.getElementById('r1');
+    const r2 = document.getElementById('r2');
+    const r3 = document.getElementById('r3');
+    const slotEl = document.getElementById('slot');
+    const resultEl = document.getElementById('result');
+    const coinsEl = document.getElementById('coins');
+    const spinBtn = document.getElementById('spinBtn');
+    const addBtn = document.getElementById('addBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const betSel = document.getElementById('bet');
+    const histList = document.getElementById('histList');
+
+    let coins = Number(localStorage.getItem('png_coins')) || 100;
+    let spinning = false;
+    let history = JSON.parse(localStorage.getItem('png_history') || '[]');
+
+    function saveState(){
+      localStorage.setItem('png_coins', coins);
+      localStorage.setItem('png_history', JSON.stringify(history.slice(0,10)));
+    }
+
+    function updateDisplay(){
+      coinsEl.innerText = "Coins: " + coins;
+      renderHistory();
+      saveState();
+    }
+
+    function renderHistory(){
+      histList.innerHTML = '';
+      if(history.length === 0){
+        histList.innerHTML = '<li style="color:#888">No spins yet</li>';
+        return;
+      }
+      history.slice(0,8).forEach(h => {
+        const li = document.createElement('li');
+        li.textContent = `${h.slots} — ${h.text} (${h.delta >= 0 ? '+'+h.delta : h.delta})`;
+        histList.appendChild(li);
+      });
+    }
+
+    addBtn.addEventListener('click', () => {
+      coins += 100;
+      resultEl.innerText = '✅ 100 coins added (Demo)';
+      resultEl.className = 'win';
+      updateDisplay();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      if(!confirm('Reset coins to 100?')) return;
+      coins = 100;
+      resultEl.innerText = '🔄 Coins reset to 100';
+      resultEl.className = '';
+      updateDisplay();
+    });
+
+    function randomSymbol(){ return symbols[Math.floor(Math.random()*symbols.length)]; }
+
+    // Payout multipliers relative to bet:
+    // jackpot (🥜🥜🥜) = 50x, triple other = 5x, double = 2x
+    function evaluate(sl1, sl2, sl3, bet){
+      let win = 0;
+      let text = '😞 No win';
+      if(sl1 === '🥜' && sl2 === '🥜' && sl3 === '🥜'){
+        win = bet * 50;
+        text = `💥 BETELNUT JACKPOT! +${win} coins!`;
+      } else if(sl1 === sl2 && sl2 === sl3){
+        win = bet * 5;
+        text = `🎉 Triple match! +${win} coins!`;
+      } else if(sl1 === sl2 || sl2 === sl3 || sl1 === sl3){
+        win = bet * 2;
+        text = `👍 Double match! +${win} coins!`;
+      }
+      return { win, text };
+    }
+
+    // Spin animation: cycle the reels for duration, stop them one-by-one
+    async function spin(){
+      if(spinning) return;
+      const bet = Number(betSel.value);
+      if(coins < bet){
+        resultEl.innerText = "❌ Not enough coins!";
+        resultEl.className = 'lose';
+        return;
+      }
+      spinning = true;
+      spinBtn.disabled = true;
+      addBtn.disabled = true;
+      resetBtn.disabled = true;
+      betSel.disabled = true;
+      resultEl.innerText = '';
+      resultEl.className = '';
+      coins -= bet;
+      updateDisplay();
+
+      // Start cycling
+      let int1, int2, int3;
+      function startCycle(el, speed){
+        el.classList.add('spin');
+        return setInterval(() => { el.innerText = randomSymbol(); }, speed);
+      }
+      int1 = startCycle(r1, 80);
+      int2 = startCycle(r2, 80);
+      int3 = startCycle(r3, 80);
+
+      // Stop reels with delays like a real slot
+      await wait(800);
+      clearInterval(int1);
+      r1.classList.remove('spin');
+      // small settle effect
+      settleReel(r1);
+
+      await wait(300);
+      clearInterval(int2);
+      r2.classList.remove('spin');
+      settleReel(r2);
+
+      await wait(300);
+      clearInterval(int3);
+      r3.classList.remove('spin');
+      settleReel(r3);
+
+      // Final symbols
+      const slot1 = r1.innerText;
+      const slot2 = r2.innerText;
+      const slot3 = r3.innerText;
+
+      const { win, text } = evaluate(slot1, slot2, slot3, bet);
+      coins += win;
+      resultEl.innerText = text;
+      resultEl.className = win > 0 ? 'win' : 'lose';
+
+      // Save to history (most recent first)
+      history.unshift({ slots: `${slot1} ${slot2} ${slot3}`, text, delta: (win - bet) });
+      if(history.length > 20) history.pop();
+
+      updateDisplay();
+
+      spinning = false;
+      spinBtn.disabled = false;
+      addBtn.disabled = false;
+      resetBtn.disabled = false;
+      betSel.disabled = false;
+    }
+
+    function settleReel(el){
+      // tiny bounce effect to feel like reel stops
+      el.style.transform = 'translateY(-8px)';
+      setTimeout(()=> el.style.transform = '', 120);
+    }
+
+    function wait(ms){ return new Promise(res=>setTimeout(res, ms)); }
+
+    // Keyboard: space to spin
+    window.addEventListener('keydown', (e) => {
+      if(e.code === 'Space' && !spinning){
+        e.preventDefault();
+        spin();
+      }
+    });
+
+    spinBtn.addEventListener('click', spin);
+
+    // Initialize UI
+    updateDisplay();
+
+    // Expose for debugging in console (optional)
+    window.pngSlot = { spin, addCoins: () => { coins+=100; updateDisplay(); } };
+  </script>
+
+</body>
+</html>
