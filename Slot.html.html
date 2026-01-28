@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>PNG Slot Game (Sample)</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #f7f3e9;
+  padding-top: 40px;
+}
+#slot {
+  font-size: 60px;
+  margin: 20px;
+}
+button {
+  font-size: 18px;
+  padding: 10px 20px;
+  margin: 10px;
+}
+.box {
+  background: white;
+  width: 320px;
+  margin: auto;
+  padding: 20px;
+  border-radius: 10px;
+}
+input {
+  padding: 8px;
+  width: 90%;
+  margin: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>PNG SLOT GAME 🎰</h1>
+<p>🍌 🍊 🍎 🥜 Betelnut = JACKPOT</p>
+
+<div class="box">
+  <div id="slot">🍌 🍊 🍎</div>
+  <p id="result"></p>
+  <p><strong>Coins:</strong> <span id="coins">0</span></p>
+  <button onclick="spin()">Spin (10 coins)</button>
+</div>
+
+<br>
+
+<div class="box">
+  <h3>Sample BSP Payment (DEMO)</h3>
+  <input placeholder="BSP Card Number (sample)" />
+  <input placeholder="Amount (PGK)" />
+  <button onclick="addCoins()">Pay (Demo)</button>
+  <p style="font-size:12px;color:red;">Sample only – no real payment</p>
+</div>
+
+<script>
+let symbols = ["🍌","🍊","🍎","🥜"];
+let coins = localStorage.getItem("coins") 
+  ? parseInt(localStorage.getItem("coins")) 
+  : 0;
+
+document.getElementById("coins").innerText = coins;
+
+function addCoins() {
+  coins += 100; // demo credit
+  save();
+  alert("DEMO PAYMENT SUCCESSFUL\n100 coins added");
+}
+
+function spin() {
+  if (coins < 10) {
+    document.getElementById("result").innerText = "❌ Not enough coins";
+    return;
+  }
+
+  coins -= 10;
+
+  let s1 = symbols[Math.floor(Math.random()*symbols.length)];
+  let s2 = symbols[Math.floor(Math.random()*symbols.length)];
+  let s3 = symbols[Math.floor(Math.random()*symbols.length)];
+
+  document.getElementById("slot").innerText = s1 + " " + s2 + " " + s3;
+
+  let win = 0;
+
+  if (s1==="🥜" && s2==="🥜" && s3==="🥜") {
+    win = 500;
+    document.getElementById("result").innerText = "💥 BETELNUT JACKPOT! +500";
+  } 
+  else if (s1===s2 && s2===s3) {
+    win = 50;
+    document.getElementById("result").innerText = "🎉 Triple match +50";
+  } 
+  else if (s1===s2 || s2===s3 || s1===s3) {
+    win = 20;
+    document.getElementById("result").innerText = "👍 Double match +20";
+  } 
+  else {
+    document.getElementById("result").innerText = "😞 No win";
+  }
+
+  coins += win;
+  save();
+}
+
+function save() {
+  localStorage.setItem("coins", coins);
+  document.getElementById("coins").innerText = coins;
+}
+</script>
+
+</body>
+</html>
